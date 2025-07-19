@@ -1,15 +1,37 @@
+import streamlit as st
 import yfinance as yf
+import pandas as pd
 
-# List of ASX tickers (for example, you can replace these with actual tickers you're interested in)
-asx_tickers = ['CBA.AX', 'BHP.AX', 'ANZ.AX']
+# Example list — replace with full ASX tickers
+ASX_TICKERS = ['CBA.AX', 'BHP.AX', 'ANZ.AX']
 
-# Function to get the beta from Yahoo Finance
-def get_beta(ticker):
-    stock = yf.Ticker(ticker)
-    info = stock.info
-    return info.get('beta', 'Beta not available')
+st.title("ASX 5‑Year Beta Downloader 📊")
 
-# Extract and print the beta for each stock
-for ticker in asx_tickers:
-    beta = get_beta(ticker)
-    print(f"Beta for {ticker}: {beta}")
+@st.cache_data
+def fetch_betas(tickers):
+    data = {}
+    for t in tickers:
+        info = yf.Ticker(t).info
+        beta = info.get('beta', None)
+        data[t] = beta
+    df = pd.DataFrame.from_dict(data, orient='index', columns=['5Y Beta'])
+    df.index.name = 'Ticker'
+    return df
+
+beta_df = fetch_betas(ASX_TICKERS)
+st.write("Here are the beta values Yahoo Finance provides:")
+st.table(beta_df)
+
+# Prepare CSV for download
+@st.cache_data
+def to_csv_bytes(df: pd.DataFrame) -> bytes:
+    return df.to_csv().encode('utf-8')
+
+csv_bytes = to_csv_bytes(beta_df)
+
+st.download_button(
+    label="📥 Download beta values as CSV",
+    data=csv_bytes,
+    file_name="asx_5y_betas.csv",
+    mime="text/csv"
+)
